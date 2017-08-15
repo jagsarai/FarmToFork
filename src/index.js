@@ -3,6 +3,8 @@ var Alexa = require("alexa-sdk");
 const https = require("https");
 var deviceId;
 var consentToken;
+var userZip;
+var results
 
 exports.handler = function(event, context, callback) {
     var alexa = Alexa.handler(event, context);
@@ -38,7 +40,6 @@ var handlers = {
     'SearchNearCity': function () {
        var searchCity;
        console.log("city is: ", this.event.request.intent.slots.citySearch.value)
-
        this.event.request.intent.slots.citySearch.value !== undefined ? searchCity = this.event.request.intent.slots.citySearch.value
                                                                       : searchCity = null;
        console.log("deviceId: ", this.event.context.System.device.deviceId);
@@ -53,15 +54,14 @@ var handlers = {
         if(deviceId !== undefined && consentToken !== undefined && searchCity !== undefined){
             getCity(searchCity, (city) => {
                 getFarmersMarkets(null, city, null, (result) =>{
-                    console.log("results inside search: ", result)
-                    this.attributes = result;
                     var answerString = '';
                     var finalOutput;
+                    results = result
                     finalOutput = result.map((answer) => {
                         return answerString + (" " + answer['name']);
                     });
                     console.log("final output is: " + finalOutput);
-                    this.emit(":ask", `Here are the markets near ${searchCity}: ${finalOutput}`);
+                    this.emit(":tell", `Here are the markets near ${searchCity}: ${finalOutput}`);
                 })
             })               
         }
@@ -74,7 +74,6 @@ var handlers = {
        }  
     },    
     'SearchNearMe': function () {
-       console.log("attributes inside search near me: " , this.attributes);
        console.log("deviceId: ", this.event.context.System.device.deviceId);
        this.event.context.System.device.deviceId !== undefined ? deviceId = this.event.context.System.device.deviceId
                                                                : deviceId = undefined;
@@ -107,7 +106,6 @@ var handlers = {
        }  
     }
 };
-
 
 
 
