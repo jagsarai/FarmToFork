@@ -3,8 +3,7 @@ var Alexa = require("alexa-sdk");
 const https = require("https");
 var deviceId;
 var consentToken;
-var userZip;
-var results
+
 
 exports.handler = function(event, context, callback) {
     var alexa = Alexa.handler(event, context);
@@ -56,7 +55,6 @@ var handlers = {
                 getFarmersMarkets(null, city, null, (result) =>{
                     var answerString = '';
                     var finalOutput;
-                    results = result
                     finalOutput = result.map((answer) => {
                         return answerString + (" " + answer['name']);
                     });
