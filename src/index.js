@@ -56,10 +56,16 @@ var handlers = {
                     var answerString = '';
                     var finalOutput;
                     finalOutput = result.map((answer) => {
-                        return answerString + (" " + answer['name']);
+                      return answer["1"]
+                            || answer["2"]
+                            || answer["3"]
+                            || answer["4"]
+                            || answer["5"]
+                    }).map((market) => {
+                      return answerString +  market["name"] 
                     });
                     console.log("final output is: " + finalOutput);
-                    this.emit(":tell", `Here are the markets near ${searchCity}: ${finalOutput}`);
+                    this.emit(":ask", `Here are the markets near ${searchCity}: ${finalOutput}`);
                 })
             })               
         }
@@ -88,10 +94,16 @@ var handlers = {
                     var answerString = '';
                     var finalOutput;
                     finalOutput = result.map((answer) => {
-                        return answerString + (" " + answer['name']);
+                      return answer["1"]
+                            || answer["2"]
+                            || answer["3"]
+                            || answer["4"]
+                            || answer["5"]
+                    }).map((market) => {
+                      return answerString +  market["name"] 
                     });
                     console.log("final output is: " + finalOutput);
-                    this.emit(":tell", `Here are the markets near you: ${finalOutput}`);
+                    this.emit(":ask", `Here are the markets near you: ${finalOutput}`);
                 });
             });               
         }
@@ -185,7 +197,7 @@ function getFarmersMarkets(zipcode=0, city=0, id=0, callback){
       res.on('end', () => {
           farmData = JSON.parse(farmData)
           
-          farmData.results ? farmData = getMartketData(farmData.results) : farmData = farmData.marketdetails
+          farmData.results ? farmData = parseData(getMartketData(farmData.results)) : farmData = farmData.marketdetails
 
           callback(farmData);
       });
@@ -232,4 +244,16 @@ function getMartketData(searchResults) {
 
 function parseCity(city){
   return `lat=${city['lat']}&lng=${city['lng']}`
+}
+
+function parseData(result){
+  var results = [];
+  
+  results.push({"1": result[0]});
+  results.push({"2": result[1]});
+  results.push({"3": result[2]});
+  results.push({"4": result[3]});
+  results.push({"5": result[4]});
+
+  return results
 }
