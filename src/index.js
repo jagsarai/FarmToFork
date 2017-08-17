@@ -26,7 +26,7 @@ var handlers = {
 
        console.log("consentToken: ", consentToken);
        if(deviceId !== undefined && consentToken !== undefined){
-        this.emit(":ask", "Hi, please give me a city to search.", "Please provide a city name.")
+        this.emit(":ask", "Hi, please give me a city to search. You can say something like, near San Francisco", "You can say something like, near San Francisco.")
        }
        else if(deviceId){
         var permissions = ['read::alexa:device:all:address:country_and_postal_code']
@@ -37,6 +37,7 @@ var handlers = {
        }
     },
     'SearchNearCity': function () {
+      console.log("attributes inside search near city", this.attributes['GetDetails'])
        var searchCity;
        console.log("city is: ", this.event.request.intent.slots.citySearch.value)
        this.event.request.intent.slots.citySearch.value !== undefined ? searchCity = this.event.request.intent.slots.citySearch.value
@@ -53,6 +54,7 @@ var handlers = {
         if(deviceId !== undefined && consentToken !== undefined && searchCity !== undefined){
             getCity(searchCity, (city) => {
                 getFarmersMarkets(null, city, null, (result) =>{
+                    this.attributes['GetDetails'] = result;
                     var answerString = '';
                     var finalOutput;
                     finalOutput = result.map((answer) => {
@@ -65,7 +67,7 @@ var handlers = {
                       return answerString +  market["name"] 
                     });
                     console.log("final output is: " + finalOutput);
-                    this.emit(":ask", `Here are the markets near ${searchCity}: ${finalOutput}`);
+                    this.emit(":askWithCard", `Here are the markets near ${searchCity}: ${finalOutput}. Please tell me if you would like details on one. You can say something like, the first one.`, 'Please tell me which market you would like details on. You can say something like, the first one.');
                 })
             })               
         }
@@ -78,6 +80,7 @@ var handlers = {
        }  
     },    
     'SearchNearMe': function () {
+      console.log("attributes inside of search near me ", this.attributes['GetDetails']);
        console.log("deviceId: ", this.event.context.System.device.deviceId);
        this.event.context.System.device.deviceId !== undefined ? deviceId = this.event.context.System.device.deviceId
                                                                : deviceId = undefined;
@@ -91,6 +94,7 @@ var handlers = {
             requestZip(deviceId, consentToken, (zip) => {
                 console.log("This is my zip: ", zip);
                 getFarmersMarkets(zip, null, null, (result) => {
+                    this.attributes['GetDetails'] = result
                     var answerString = '';
                     var finalOutput;
                     finalOutput = result.map((answer) => {
@@ -103,7 +107,7 @@ var handlers = {
                       return answerString +  market["name"] 
                     });
                     console.log("final output is: " + finalOutput);
-                    this.emit(":ask", `Here are the markets near you: ${finalOutput}`);
+                    this.emit(":askWithCard", `Here are the markets near you: ${finalOutput}. Please tell me if you would like details on one. You can say something like, the first one.`, 'Please tell me which market you would like details on. You can say something like, the first one.');
                 });
             });               
         }
@@ -114,6 +118,26 @@ var handlers = {
        else{
             this.emit(":tell", "Please use a proper device to access this skill. Goodbye!")
        }  
+    },
+    'GetDetails': function () {
+      console.log("attributes inside of GetDetails ", this.attributes["GetDetails"]);
+      var details = this.attributes["GetDetails"];
+      console.log("details inside GetDetails ", details);
+
+      var marketToSearchFor = this.event.request.intent.slots.details.value
+      console.log("Market to search for ", marketToSearchFor);
+
+      var id;
+      id = findIdOfMarket(marketToSearchFor, details);
+      console.log("id is ", id)
+
+      getFarmersMarkets(null, null, id, (result) => {
+        console.log("results for GetDetails: ", result);
+        console.log("GoogleLink for GetDetails:", result["GoogleLink"])
+        var marketDetail = ''
+        var finalOutput = marketDetail + result['GoogleLink'];
+        this.emit(":tellWithCard", `Here are the details: ${finalOutput}`)
+      });
     }
 };
 
@@ -121,6 +145,16 @@ var handlers = {
 
 //***********Helper Funcitons***********//
 
+function findIdOfMarket(marketToSearchFor, details){
+  var id 
+  marketToSearchFor === '1st' ? id = details[0]["1"]["id"] : id = 'cannot find that id'
+  marketToSearchFor === 'second' ? id = details[1]["2"]["id"] : id 
+  marketToSearchFor === '3rd' ? id = details[2]["3"]["id"] : id 
+  marketToSearchFor === '4th' ? id = details[3]["4"]["id"] : id 
+  marketToSearchFor === '5th' ? id = details[4]["5"]["id"] : id
+
+  return id
+}
 
 function requestZip(deviceId, consentToken, callback) {
 
@@ -156,21 +190,6 @@ function requestZip(deviceId, consentToken, callback) {
 }
 
 
-function getFarmersMarketsByCity(city){
-    getCity('sacramento', (city) => {
-      return getFarmersMarkets(null, city, (data) => {
-        console.log(data);
-        return data;
-      });
-    });
-}
-
-function getFarmersMarketsByZip(zip){
-  getFarmersMarkets(zip, null, (result) => {
-    console.log(result);
-    return result
-  });
-};
 
 function getFarmersMarkets(zipcode=0, city=0, id=0, callback){
   var location;
@@ -206,7 +225,7 @@ function getFarmersMarkets(zipcode=0, city=0, id=0, callback){
 }
 
 function getCity(city, callback){
-  city = city.replace(/\s/g, "%20")
+  city = city.toLowerCase().replace(/\s/g, "%20")
   var API = 'AIzaSyCa5X-TyC8sqmqrkbS5lzhklqRCw6-hkDA';
   var options = {
     hostname: 'maps.googleapis.com',
