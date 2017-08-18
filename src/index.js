@@ -26,7 +26,9 @@ var handlers = {
 
        console.log("consentToken: ", consentToken);
        if(deviceId !== undefined && consentToken !== undefined){
-        this.emit(":ask", "Hi, please give me a city to search. You can say something like, near San Francisco", "You can say something like, near San Francisco.")
+        var outputSpeech = "Hi, please give me a city to search. You can say something like, in San Francisco."
+        var repromptSpeech = "You can say something like, in San Francisco."
+        this.emit(":ask", outputSpeech, repromptSpeech)
        }
        else if(deviceId){
         var permissions = ['read::alexa:device:all:address:country_and_postal_code']
@@ -57,6 +59,7 @@ var handlers = {
                     this.attributes['GetDetails'] = result;
                     var answerString = '';
                     var finalOutput;
+                    console.log("result is: ", result)
                     finalOutput = result.map((answer) => {
                       return answer["1"]
                             || answer["2"]
@@ -64,10 +67,14 @@ var handlers = {
                             || answer["4"]
                             || answer["5"]
                     }).map((market) => {
-                      return answerString +  market["name"] 
+                      return answerString + " " + market["name"] 
                     });
                     console.log("final output is: " + finalOutput);
-                    this.emit(":askWithCard", `Here are the markets near ${searchCity}: ${finalOutput}. Please tell me if you would like details on one. You can say something like, the first one.`, 'Please tell me which market you would like details on. You can say something like, the first one.');
+                    var outputSpeech = `Here are the markets near ${searchCity}: ${finalOutput}. Please tell me if you would like details on one. You can say something like, the first one.`
+                    var repromptSpeech = `Here are the markets near ${searchCity}: ${finalOutput}. You can say something like, the first one.`
+                    var cardTitle = `Markets near ${searchCity}`
+                    var cardContent = `Here are the markets near ${searchCity}: ${finalOutput}.`
+                    this.emit(":askWithCard", outputSpeech, repromptSpeech, cardTitle, cardContent, null);
                 })
             })               
         }
@@ -97,6 +104,7 @@ var handlers = {
                     this.attributes['GetDetails'] = result
                     var answerString = '';
                     var finalOutput;
+                    console.log("result is : " , result)
                     finalOutput = result.map((answer) => {
                       return answer["1"]
                             || answer["2"]
@@ -104,10 +112,14 @@ var handlers = {
                             || answer["4"]
                             || answer["5"]
                     }).map((market) => {
-                      return answerString +  market["name"] 
+                      return answerString +  " " + market["name"] 
                     });
                     console.log("final output is: " + finalOutput);
-                    this.emit(":askWithCard", `Here are the markets near you: ${finalOutput}. Please tell me if you would like details on one. You can say something like, the first one.`, 'Please tell me which market you would like details on. You can say something like, the first one.');
+                    var outputSpeech = `Here are the markets near you: ${finalOutput}. Please tell me if you would like details on one. You can say something like, the first one.`
+                    var repromptSpeech = `Here are the markets near you: ${finalOutput}. You can say something like, the first one.`
+                    var cardTitle = `Markets near you`
+                    var cardContent = `Here are the markets near you: ${finalOutput}.`
+                    this.emit(":askWithCard", outputSpeech, repromptSpeech, cardTitle, cardContent, null);
                 });
             });               
         }
@@ -127,16 +139,25 @@ var handlers = {
       var marketToSearchFor = this.event.request.intent.slots.details.value
       console.log("Market to search for ", marketToSearchFor);
 
-      var id;
-      id = findIdOfMarket(marketToSearchFor, details);
+      var id = findIdOfMarket(marketToSearchFor, details);
       console.log("id is ", id)
+
+      var marketName = findNameOfMarket(marketToSearchFor, details);
+      console.log("name of market ", marketName) 
+
 
       getFarmersMarkets(null, null, id, (result) => {
         console.log("results for GetDetails: ", result);
-        console.log("GoogleLink for GetDetails:", result["GoogleLink"])
-        var marketDetail = ''
-        var finalOutput = marketDetail + result['GoogleLink'];
-        this.emit(":tellWithCard", `Here are the details: ${finalOutput}`)
+
+        var link = result['GoogleLink']
+        var address = result['Address']
+        var products = result['Products']
+        var schedule = result['Schedule'].replace(/<br>/g, "");
+    
+        var outputSpeech = `Here are the products sold at ${marketName}: ${products}`
+        var cardTitle = `Market Details for ${marketName}`
+        var cardContent = `Address: ${address} \n Products Sold: ${products} \n Schedule: ${schedule} \n link: ${link}` 
+        this.emit(":tellWithCard", outputSpeech, cardTitle, cardContent)
       });
     }
 };
@@ -147,13 +168,24 @@ var handlers = {
 
 function findIdOfMarket(marketToSearchFor, details){
   var id 
-  marketToSearchFor === '1st' ? id = details[0]["1"]["id"] : id = 'cannot find that id'
-  marketToSearchFor === 'second' ? id = details[1]["2"]["id"] : id 
-  marketToSearchFor === '3rd' ? id = details[2]["3"]["id"] : id 
-  marketToSearchFor === '4th' ? id = details[3]["4"]["id"] : id 
-  marketToSearchFor === '5th' ? id = details[4]["5"]["id"] : id
+  marketToSearchFor === '1st' || 'first' || 'number one' || 'one'? id = details[0]["1"]["id"] : id = 'cannot find that id'
+  marketToSearchFor === 'second' || 'number two' || '2nd' || 'two'? id = details[1]["2"]["id"] : id 
+  marketToSearchFor === '3rd' || 'number three' || 'third' || 'three'? id = details[2]["3"]["id"] : id 
+  marketToSearchFor === '4th' || 'fourth' || 'number four' || 'four'? id = details[3]["4"]["id"] : id 
+  marketToSearchFor === '5th' || 'fifth' || 'last' || 'number 5' || 'five'? id = details[4]["5"]["id"] : id
 
   return id
+}
+
+function findNameOfMarket(marketToSearchFor, details){
+  var name
+  marketToSearchFor === '1st' || 'first' || 'number one' || 'one'? name = details[0]["1"]["name"] : name = 'cannot find that name'
+  marketToSearchFor === 'second' || 'number two' || '2nd' || 'two'? name = details[1]["2"]["name"] : name 
+  marketToSearchFor === '3rd' || 'number three' || 'third' || 'three'? name = details[2]["3"]["name"] : name 
+  marketToSearchFor === '4th' || 'fourth' || 'number four' || 'four'? name = details[3]["4"]["name"] : name 
+  marketToSearchFor === '5th' || 'fifth' || 'last' || 'number 5' || 'five'? name = details[4]["5"]["name"] : name
+
+  return name
 }
 
 function requestZip(deviceId, consentToken, callback) {
