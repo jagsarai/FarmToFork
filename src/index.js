@@ -151,7 +151,10 @@ var handlers = {
 
         var link = result['GoogleLink']
         var address = result['Address']
-        var products = result['Products']
+        var products = result['Products'] === "" ? result["Products"] = "Product detail for this market is not available" 
+                                                 : result["Products"].replace(/and\Wor/g, "and")
+                                                                     .replace(/,/g, ";")
+                                                                     .replace(/etc.;/g, "")
         var schedule = result['Schedule'].replace(/<br>/g, "");
     
         var outputSpeech = `Here are the products sold at ${marketName}: ${products}`
@@ -172,7 +175,7 @@ function findIdOfMarket(marketToSearchFor, details){
   marketToSearchFor === '2nd' || marketToSearchFor === 'second' || marketToSearchFor === 'number two'   || marketToSearchFor === 'two'  ? id = details[1]["2"]["id"] : id 
   marketToSearchFor === '3rd' || marketToSearchFor === 'third'  || marketToSearchFor === 'number three' || marketToSearchFor === 'three'? id = details[2]["3"]["id"] : id
   marketToSearchFor === '4th' || marketToSearchFor === 'fourth' || marketToSearchFor === 'number four'  || marketToSearchFor === 'four' ? id = details[3]["4"]["id"] : id
-  marketToSearchFor === '5th' || marketToSearchFor === 'fifth'  || marketToSearchFor === 'number five'  || marketToSearchFor === 'five' ? id = details[4]["5"]["id"] : id
+  marketToSearchFor === '5th' || marketToSearchFor === 'fifth'  || marketToSearchFor === 'number five'  || marketToSearchFor === 'five' || marketToSearchFor === 'last' ? id = details[4]["5"]["id"] : id
   return id
 }
 
@@ -182,7 +185,7 @@ function findNameOfMarket(marketToSearchFor, details){
   marketToSearchFor === '2nd' || marketToSearchFor === 'second' || marketToSearchFor === 'number two'   || marketToSearchFor === 'two'  ?  name = details[1]["2"]["name"] : name
   marketToSearchFor === '3rd' || marketToSearchFor === 'third'  || marketToSearchFor === 'number three' || marketToSearchFor === 'three'?  name = details[2]["3"]["name"] : name 
   marketToSearchFor === '4th' || marketToSearchFor === 'fourth' || marketToSearchFor === 'number four'  || marketToSearchFor === 'four' ?  name = details[3]["4"]["name"] : name 
-  marketToSearchFor === '5th' || marketToSearchFor === 'fifth'  || marketToSearchFor === 'number five'  || marketToSearchFor === 'five' ?  name = details[4]["5"]["name"] : name
+  marketToSearchFor === '5th' || marketToSearchFor === 'fifth'  || marketToSearchFor === 'number five'  || marketToSearchFor === 'five' || marketToSearchFor === 'last' ? name = details[4]["5"]["name"] : name
 
   return name
 }
