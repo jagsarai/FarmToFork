@@ -168,22 +168,21 @@ var handlers = {
 
 function findIdOfMarket(marketToSearchFor, details){
   var id 
-  marketToSearchFor === '1st' || 'first' || 'number one' || 'one'? id = details[0]["1"]["id"] : id = 'cannot find that id'
-  marketToSearchFor === 'second' || 'number two' || '2nd' || 'two'? id = details[1]["2"]["id"] : id 
-  marketToSearchFor === '3rd' || 'number three' || 'third' || 'three'? id = details[2]["3"]["id"] : id 
-  marketToSearchFor === '4th' || 'fourth' || 'number four' || 'four'? id = details[3]["4"]["id"] : id 
-  marketToSearchFor === '5th' || 'fifth' || 'last' || 'number 5' || 'five'? id = details[4]["5"]["id"] : id
-
+  marketToSearchFor === '1st' || marketToSearchFor === 'first'  || marketToSearchFor === 'number one'   || marketToSearchFor === 'one'  ? id = details[0]["1"]["id"] : id = 'cannot find that id'
+  marketToSearchFor === '2nd' || marketToSearchFor === 'second' || marketToSearchFor === 'number two'   || marketToSearchFor === 'two'  ? id = details[1]["2"]["id"] : id 
+  marketToSearchFor === '3rd' || marketToSearchFor === 'third'  || marketToSearchFor === 'number three' || marketToSearchFor === 'three'? id = details[2]["3"]["id"] : id
+  marketToSearchFor === '4th' || marketToSearchFor === 'fourth' || marketToSearchFor === 'number four'  || marketToSearchFor === 'four' ? id = details[3]["4"]["id"] : id
+  marketToSearchFor === '5th' || marketToSearchFor === 'fifth'  || marketToSearchFor === 'number five'  || marketToSearchFor === 'five' ? id = details[4]["5"]["id"] : id
   return id
 }
 
 function findNameOfMarket(marketToSearchFor, details){
   var name
-  marketToSearchFor === '1st' || 'first' || 'number one' || 'one'? name = details[0]["1"]["name"] : name = 'cannot find that name'
-  marketToSearchFor === 'second' || 'number two' || '2nd' || 'two'? name = details[1]["2"]["name"] : name 
-  marketToSearchFor === '3rd' || 'number three' || 'third' || 'three'? name = details[2]["3"]["name"] : name 
-  marketToSearchFor === '4th' || 'fourth' || 'number four' || 'four'? name = details[3]["4"]["name"] : name 
-  marketToSearchFor === '5th' || 'fifth' || 'last' || 'number 5' || 'five'? name = details[4]["5"]["name"] : name
+  marketToSearchFor === '1st' || marketToSearchFor === 'first'  || marketToSearchFor === 'number one'   || marketToSearchFor === 'one'  ?  name = details[0]["1"]["name"] : name = 'cannot find that name'
+  marketToSearchFor === '2nd' || marketToSearchFor === 'second' || marketToSearchFor === 'number two'   || marketToSearchFor === 'two'  ?  name = details[1]["2"]["name"] : name
+  marketToSearchFor === '3rd' || marketToSearchFor === 'third'  || marketToSearchFor === 'number three' || marketToSearchFor === 'three'?  name = details[2]["3"]["name"] : name 
+  marketToSearchFor === '4th' || marketToSearchFor === 'fourth' || marketToSearchFor === 'number four'  || marketToSearchFor === 'four' ?  name = details[3]["4"]["name"] : name 
+  marketToSearchFor === '5th' || marketToSearchFor === 'fifth'  || marketToSearchFor === 'number five'  || marketToSearchFor === 'five' ?  name = details[4]["5"]["name"] : name
 
   return name
 }
