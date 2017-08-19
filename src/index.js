@@ -7,6 +7,9 @@ var consentToken;
 
 exports.handler = function(event, context, callback) {
     var alexa = Alexa.handler(event, context);
+
+    // alexa.dynamoDBTableName = 'tomatoData';
+
     alexa.registerHandlers(handlers);
     alexa.execute();
 };
@@ -22,12 +25,12 @@ var handlers = {
        console.log("permissions: " , this.event.context.System.user.permissions);
        
        this.event.context.System.user.permissions !== undefined ? consentToken = this.event.context.System.user.permissions.consentToken 
-                                                               : consentToken = undefined;
+                                                                : consentToken = undefined;
 
        console.log("consentToken: ", consentToken);
-       if(deviceId !== undefined && consentToken !== undefined){
-        var outputSpeech = "Hi, please give me a city to search. You can say something like, in San Francisco."
-        var repromptSpeech = "You can say something like, in San Francisco."
+       if(deviceId && consentToken){
+        var outputSpeech = "Hi, please ask me to look for a near-by market. You can say something like, find a market in San Francisco."
+        var repromptSpeech = "You can say something like, find a market around San Francisco."
         this.emit(":ask", outputSpeech, repromptSpeech)
        }
        else if(deviceId){
@@ -42,20 +45,25 @@ var handlers = {
       console.log("attributes inside search near city", this.attributes['GetDetails'])
        var searchCity;
        console.log("city is: ", this.event.request.intent.slots.citySearch.value)
+       //Check to see if the there is a value for city that we can search
        this.event.request.intent.slots.citySearch.value !== undefined ? searchCity = this.event.request.intent.slots.citySearch.value
                                                                       : searchCity = null;
        console.log("deviceId: ", this.event.context.System.device.deviceId);
+
+       //Check to see if there is a device id
        this.event.context.System.device.deviceId !== undefined ? deviceId = this.event.context.System.device.deviceId
                                                                : deviceId = undefined;
        console.log("permissions: " , this.event.context.System.user.permissions);
        
+       //Check to see if user permissions are given. 
        this.event.context.System.user.permissions !== undefined ? consentToken = this.event.context.System.user.permissions.consentToken 
-                                                               : consentToken = undefined;
+                                                                : consentToken = undefined;
 
        console.log("consentToken: ", consentToken);
-        if(deviceId !== undefined && consentToken !== undefined && searchCity !== undefined){
+        if(deviceId && consentToken && searchCity){
             getCity(searchCity, (city) => {
                 getFarmersMarkets(null, city, null, (result) =>{
+                    //Attributes collected for the GetDetails intent. 
                     this.attributes['GetDetails'] = result;
                     var answerString = '';
                     var finalOutput;
@@ -89,18 +97,21 @@ var handlers = {
     'SearchNearMe': function () {
       console.log("attributes inside of search near me ", this.attributes['GetDetails']);
        console.log("deviceId: ", this.event.context.System.device.deviceId);
+       // Check to see if device id is peresent. 
        this.event.context.System.device.deviceId !== undefined ? deviceId = this.event.context.System.device.deviceId
                                                                : deviceId = undefined;
        console.log("permissions: " , this.event.context.System.user.permissions);
        
+       //Check to see if user permisisons are valid. 
        this.event.context.System.user.permissions !== undefined ? consentToken = this.event.context.System.user.permissions.consentToken 
-                                                               : consentToken = undefined;
+                                                                : consentToken = undefined;
 
        console.log("consentToken: ", consentToken);
-        if(deviceId !== undefined && consentToken !== undefined){
+        if(deviceId && consentToken){
             requestZip(deviceId, consentToken, (zip) => {
                 console.log("This is my zip: ", zip);
                 getFarmersMarkets(zip, null, null, (result) => {
+                    //Attributes collected for the GetDetails intent. 
                     this.attributes['GetDetails'] = result
                     var answerString = '';
                     var finalOutput;
@@ -133,14 +144,16 @@ var handlers = {
     },
     'GetDetails': function () {
       console.log("attributes inside of GetDetails ", this.attributes["GetDetails"]);
+      //Get the attributes passed to us by our pervious intenets
       var details = this.attributes["GetDetails"];
-      console.log("details inside GetDetails ", details);
 
       var marketToSearchFor = this.event.request.intent.slots.details.value
       console.log("Market to search for ", marketToSearchFor);
 
       var id = findIdOfMarket(marketToSearchFor, details);
       console.log("id is ", id)
+
+      // id === "cannot find that id" ? this.emit('LaunchRequest') : id
 
       var marketName = findNameOfMarket(marketToSearchFor, details);
       console.log("name of market ", marketName) 
@@ -155,37 +168,50 @@ var handlers = {
                                                  : result["Products"].replace(/and\Wor/g, "and")
                                                                      .replace(/,/g, ";")
                                                                      .replace(/etc.;/g, "")
+                                                                     .replace(/(for immediate consumption)/g, "")
         var schedule = result['Schedule'].replace(/<br>/g, "");
     
-        var outputSpeech = `Here are the products sold at ${marketName}: ${products}`
+        var outputSpeech = `Here are the products sold at ${marketName}: ${products}. Should I send you the details?`
+        var repromptSpeech = 'Should I send you the details? You can say something like send me the details.'
         var cardTitle = `Market Details for ${marketName}`
         var cardContent = `Address: ${address} \n Products Sold: ${products} \n Schedule: ${schedule} \n link: ${link}` 
-        this.emit(":tellWithCard", outputSpeech, cardTitle, cardContent)
+        this.emit(":askWithCard", outputSpeech, repromptSpeech, cardTitle, cardContent)
       });
+    },
+    'GetPhoneNum': function (){
+      var phoneNum = this.attributes["GetPhoneNum"];
+      console.log("phone number is: ", phoneNum);
+      var outputSpeech = "I could not find your phone number. Please tell me your phone number, starting with the area code first."
+      var repromptSpeech = "Plesae tell me your phone number, starting with the area code first."
+      var cardTitle = "Phone Number Request"
+      var cardContent = "Please tell me your phone number so I can send you the details."
+
+      phoneNum !== undefined ? this.emit(":tell", "The details have been sent to your phone.") : this.emit(":askWithCard", outputSpeech, repromptSpeech, cardTitle, cardContent, null)
+
     }
 };
 
 
 
-//***********Helper Funcitons***********//
+//***********Helper Functions***********//
 
 function findIdOfMarket(marketToSearchFor, details){
   var id 
-  marketToSearchFor === '1st' || marketToSearchFor === 'first'  || marketToSearchFor === 'number one'   || marketToSearchFor === 'one'  ? id = details[0]["1"]["id"] : id = 'cannot find that id'
-  marketToSearchFor === '2nd' || marketToSearchFor === 'second' || marketToSearchFor === 'number two'   || marketToSearchFor === 'two'  ? id = details[1]["2"]["id"] : id 
-  marketToSearchFor === '3rd' || marketToSearchFor === 'third'  || marketToSearchFor === 'number three' || marketToSearchFor === 'three'? id = details[2]["3"]["id"] : id
-  marketToSearchFor === '4th' || marketToSearchFor === 'fourth' || marketToSearchFor === 'number four'  || marketToSearchFor === 'four' ? id = details[3]["4"]["id"] : id
-  marketToSearchFor === '5th' || marketToSearchFor === 'fifth'  || marketToSearchFor === 'number five'  || marketToSearchFor === 'five' || marketToSearchFor === 'last' ? id = details[4]["5"]["id"] : id
+  marketToSearchFor === '1st' || marketToSearchFor === 'first'  || marketToSearchFor === 'one'   || marketToSearchFor === '1'  ? id = details[0]["1"]["id"] : id = 'cannot find that id'
+  marketToSearchFor === '2nd' || marketToSearchFor === 'second' || marketToSearchFor === 'two'   || marketToSearchFor === '2'  ? id = details[1]["2"]["id"] : id 
+  marketToSearchFor === '3rd' || marketToSearchFor === 'third'  || marketToSearchFor === 'three' || marketToSearchFor === '3'  ? id = details[2]["3"]["id"] : id
+  marketToSearchFor === '4th' || marketToSearchFor === 'fourth' || marketToSearchFor === 'four'  || marketToSearchFor === '4'  ? id = details[3]["4"]["id"] : id
+  marketToSearchFor === '5th' || marketToSearchFor === 'fifth'  || marketToSearchFor === 'five'  || marketToSearchFor === '5'  || marketToSearchFor === 'last' ? id = details[4]["5"]["id"] : id
   return id
 }
 
 function findNameOfMarket(marketToSearchFor, details){
   var name
-  marketToSearchFor === '1st' || marketToSearchFor === 'first'  || marketToSearchFor === 'number one'   || marketToSearchFor === 'one'  ?  name = details[0]["1"]["name"] : name = 'cannot find that name'
-  marketToSearchFor === '2nd' || marketToSearchFor === 'second' || marketToSearchFor === 'number two'   || marketToSearchFor === 'two'  ?  name = details[1]["2"]["name"] : name
-  marketToSearchFor === '3rd' || marketToSearchFor === 'third'  || marketToSearchFor === 'number three' || marketToSearchFor === 'three'?  name = details[2]["3"]["name"] : name 
-  marketToSearchFor === '4th' || marketToSearchFor === 'fourth' || marketToSearchFor === 'number four'  || marketToSearchFor === 'four' ?  name = details[3]["4"]["name"] : name 
-  marketToSearchFor === '5th' || marketToSearchFor === 'fifth'  || marketToSearchFor === 'number five'  || marketToSearchFor === 'five' || marketToSearchFor === 'last' ? name = details[4]["5"]["name"] : name
+  marketToSearchFor === '1st' || marketToSearchFor === 'first'  || marketToSearchFor === 'one'   || marketToSearchFor === '1'  ?  name = details[0]["1"]["name"] : name = 'cannot find that name'
+  marketToSearchFor === '2nd' || marketToSearchFor === 'second' || marketToSearchFor === 'two'   || marketToSearchFor === '2'  ?  name = details[1]["2"]["name"] : name
+  marketToSearchFor === '3rd' || marketToSearchFor === 'third'  || marketToSearchFor === 'three' || marketToSearchFor === '3'  ?  name = details[2]["3"]["name"] : name 
+  marketToSearchFor === '4th' || marketToSearchFor === 'fourth' || marketToSearchFor === 'four'  || marketToSearchFor === '4'  ?  name = details[3]["4"]["name"] : name 
+  marketToSearchFor === '5th' || marketToSearchFor === 'fifth'  || marketToSearchFor === 'five'  || marketToSearchFor === '5'  || marketToSearchFor === 'last' ? name = details[4]["5"]["name"] : name
 
   return name
 }
