@@ -16,38 +16,21 @@ exports.handler = function(event, context, callback) {
 
 var handlers = {
     'LaunchRequest': function(){
-        this.emit('LaunchIntent');
-    },
-    'LaunchIntent': function () {
-       console.log("deviceId: ", this.event.context.System.device.deviceId);
-       this.event.context.System.device.deviceId !== undefined ? deviceId = this.event.context.System.device.deviceId
-                                                               : deviceId = undefined;
-       console.log("permissions: " , this.event.context.System.user.permissions);
-       
-       this.event.context.System.user.permissions !== undefined ? consentToken = this.event.context.System.user.permissions.consentToken 
-                                                                : consentToken = undefined;
-
-       console.log("consentToken: ", consentToken);
-       if(deviceId && consentToken){
-        var outputSpeech = "Hi, please ask me to look for a near-by market. You can say something like, find a market in San Francisco."
-        var repromptSpeech = "You can say something like, find a market around San Francisco."
-        this.emit(":ask", outputSpeech, repromptSpeech)
-       }
-       else if(deviceId){
-        var permissions = ['read::alexa:device:all:address:country_and_postal_code']
-        this.emit(":tellWithPermissionCard", "Please use the Alexa skills app to enable your location", permissions);
-       }
-       else{
-         this.emit(":tell", "Please use a proper device to access this skill. Goodbye!")
-       }
+      var outputSpeech = "Welcome, I can find farmers markets near you. Please tell me which city you would like to search. You can say something like, find a market near San Francisco."
+      var repromptSpeech = "Please tell me which city you would like to search. You can say something like, find a market near San Francisco."
+      this.emit(":ask", outputSpeech, repromptSpeech);
     },
     'SearchNearCity': function () {
-      console.log("attributes inside search near city", this.attributes['GetDetails'])
+       var slotCollection = delegateSlotCollection.call(this);
+       console.log("attributes inside search near city", this.attributes['GetDetails'])
+
        var searchCity;
        console.log("city is: ", this.event.request.intent.slots.citySearch.value)
+       
        //Check to see if the there is a value for city that we can search
        this.event.request.intent.slots.citySearch.value !== undefined ? searchCity = this.event.request.intent.slots.citySearch.value
                                                                       : searchCity = null;
+
        console.log("deviceId: ", this.event.context.System.device.deviceId);
 
        //Check to see if there is a device id
@@ -96,6 +79,9 @@ var handlers = {
     },    
     'SearchNearMe': function () {
       console.log("attributes inside of search near me ", this.attributes['GetDetails']);
+
+      var slotCollection = delegateSlotCollection.call(this);
+
        console.log("deviceId: ", this.event.context.System.device.deviceId);
        // Check to see if device id is peresent. 
        this.event.context.System.device.deviceId !== undefined ? deviceId = this.event.context.System.device.deviceId
@@ -112,7 +98,7 @@ var handlers = {
                 console.log("This is my zip: ", zip);
                 getFarmersMarkets(zip, null, null, (result) => {
                     //Attributes collected for the GetDetails intent. 
-                    this.attributes['GetDetails'] = result
+                    this.attributes['GetDetails'] = result;
                     var answerString = '';
                     var finalOutput;
                     console.log("result is : " , result)
@@ -143,6 +129,7 @@ var handlers = {
        }  
     },
     'GetDetails': function () {
+      var slotCollection = delegateSlotCollection.call(this);
       console.log("attributes inside of GetDetails ", this.attributes["GetDetails"]);
       //Get the attributes passed to us by our pervious intenets
       var details = this.attributes["GetDetails"];
@@ -153,15 +140,12 @@ var handlers = {
       var id = findIdOfMarket(marketToSearchFor, details);
       console.log("id is ", id)
 
-      // id === "cannot find that id" ? this.emit('LaunchRequest') : id
-
       var marketName = findNameOfMarket(marketToSearchFor, details);
       console.log("name of market ", marketName) 
 
 
       getFarmersMarkets(null, null, id, (result) => {
         console.log("results for GetDetails: ", result);
-
         var link = result['GoogleLink']
         var address = result['Address']
         var products = result['Products'] === "" ? result["Products"] = "Product detail for this market is not available" 
@@ -171,29 +155,32 @@ var handlers = {
                                                                      .replace(/(for immediate consumption)/g, "")
         var schedule = result['Schedule'].replace(/<br>/g, "");
     
-        var outputSpeech = `Here are the products sold at ${marketName}: ${products}. Should I send you the details?`
-        var repromptSpeech = 'Should I send you the details? You can say something like send me the details.'
+        var outputSpeech = `Here are the products sold at ${marketName}: ${products}. Should I send the details to your phone?`
+        var repromptSpeech = 'Should I send the details to your phone? You can say something like send me the details.'
         var cardTitle = `Market Details for ${marketName}`
         var cardContent = `Address: ${address} \n Products Sold: ${products} \n Schedule: ${schedule} \n link: ${link}` 
         this.emit(":askWithCard", outputSpeech, repromptSpeech, cardTitle, cardContent)
       });
     },
-    'GetPhoneNum': function (){
-      var phoneNum = this.attributes["GetPhoneNum"];
-      console.log("phone number is: ", phoneNum);
-      var outputSpeech = "I could not find your phone number. Please tell me your phone number, starting with the area code first."
-      var repromptSpeech = "Plesae tell me your phone number, starting with the area code first."
-      var cardTitle = "Phone Number Request"
-      var cardContent = "Please tell me your phone number so I can send you the details."
+    'SendDetails': function (){
+      console.log("attributes for GetDetails inside SendDetails: ", this.attributes["GetDetails"]);
+      var slotCollection = delegateSlotCollection.call(this);
 
-      phoneNum !== undefined ? this.emit(":tell", "The details have been sent to your phone.") : this.emit(":askWithCard", outputSpeech, repromptSpeech, cardTitle, cardContent, null)
 
+      var phoneNum = this.event.request.intent.slots.phone.value;
+      console.log("phone number inside SendDetails: ", phoneNum);
+
+      phoneNum !== undefined ? this.emit(":tell", "The details have been sent to your phone! Goodbye!") : this.emit(":tell", "The phone number was not found. Please try again. Goodbye.")
     }
 };
 
 
 
 //***********Helper Functions***********//
+
+function phoneCheck(phone, callback){
+  
+}
 
 function findIdOfMarket(marketToSearchFor, details){
   var id 
@@ -335,4 +322,28 @@ function parseData(result){
   results.push({"5": result[4]});
 
   return results
+}
+
+
+function delegateSlotCollection(){
+  console.log("in delegateSlotCollection");
+  console.log("current dialogState: "+this.event.request.dialogState);
+    if (this.event.request.dialogState === "STARTED") {
+      console.log("in Beginning");
+      var updatedIntent=this.event.request.intent;
+      //optionally pre-fill slots: update the intent object with slot values for which
+      //you have defaults, then return Dialog.Delegate with this updated intent
+      // in the updatedIntent property
+      this.emit(":delegate", updatedIntent);
+    } else if (this.event.request.dialogState !== "COMPLETED") {
+      console.log("in not completed");
+      // return a Dialog.Delegate directive with no updatedIntent property.
+      this.emit(":delegate");
+    } else {
+      console.log("in completed");
+      console.log("returning: "+ JSON.stringify(this.event.request.intent));
+      // Dialog is now complete and all required slots should be filled,
+      // so call your normal intent handler.
+      return this.event.request.intent;
+    }
 }
