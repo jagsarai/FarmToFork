@@ -1,9 +1,9 @@
 'use strict';
 require('dotenv').config();
-// var Alexa = require("alexa-sdk");
+var Alexa = require("alexa-sdk");
 const https = require("https");
-const accountSid = 'AC483fd50e3b37bff74f807e950a053212'
-const authToken = '8b20e70e7dd8a7c2868666962e3b375f'
+const accountSid = process.env.ACCT_SID;
+const authToken = process.env.AUTH_TOKEN;
 // require the Twilio module and create a REST client
 const client = require('twilio')(accountSid, authToken);
 var deviceId;
@@ -188,7 +188,7 @@ var handlers = {
         client.messages
         .create({
           to: parsePhone(phoneNum),
-          from: '+19162999124',
+          from: process.env.MY_NUM,
           body: `Here are the detials for ${marketName} \n ${googleLink}`
         })
         .then((message) => {
