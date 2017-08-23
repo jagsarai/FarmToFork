@@ -1,8 +1,14 @@
 'use strict';
+// require('dotenv').config();
 var Alexa = require("alexa-sdk");
 const https = require("https");
+const accountSid = 'AC483fd50e3b37bff74f807e950a053212'
+const authToken = '8b20e70e7dd8a7c2868666962e3b375f'
+// require the Twilio module and create a REST client
+const client = require('twilio')(accountSid, authToken);
 var deviceId;
 var consentToken;
+var marketName;
 
 
 exports.handler = function(event, context, callback) {
@@ -140,12 +146,13 @@ var handlers = {
       var id = findIdOfMarket(marketToSearchFor, details);
       console.log("id is ", id)
 
-      var marketName = findNameOfMarket(marketToSearchFor, details);
+      marketName = findNameOfMarket(marketToSearchFor, details);
       console.log("name of market ", marketName) 
 
 
       getFarmersMarkets(null, null, id, (result) => {
         console.log("results for GetDetails: ", result);
+        this.attributes["SendDetails"] = result;
         var link = result['GoogleLink']
         var address = result['Address']
         var products = result['Products'] === "" ? result["Products"] = "Product detail for this market is not available" 
@@ -163,14 +170,35 @@ var handlers = {
       });
     },
     'SendDetails': function (){
+      var slotCollection = delegateSlotCollection.call(this)
+
       console.log("attributes for GetDetails inside SendDetails: ", this.attributes["GetDetails"]);
-      var slotCollection = delegateSlotCollection.call(this);
-
-
+      console.log("attributes for SendDetails inside SendDetails: ", this.attributes["SendDetails"]);
+      console.log("name of market: ", marketName);
+      
       var phoneNum = this.event.request.intent.slots.phone.value;
       console.log("phone number inside SendDetails: ", phoneNum);
 
-      phoneNum !== undefined ? this.emit(":tell", "The details have been sent to your phone! Goodbye!") : this.emit(":tell", "The phone number was not found. Please try again. Goodbye.")
+      var details = this.attributes["SendDetails"];
+
+      var googleLink = details["GoogleLink"];
+      console.log("GoogleLink: ", googleLink);
+
+      if(phoneNum !== undefined){
+        client.messages
+        .create({
+          to: parsePhone(phoneNum),
+          from: '+19162999124',
+          body: `Here are the detials for ${marketName} \n ${googleLink}`
+        })
+        .then((message) => {
+          console.log(message.sid)
+          this.emit(":tell", "The details have been sent to your phone! Goodbye!");
+        });  
+      }
+      else {
+        delegateSlotCollection.call(this);
+      }
     }
 };
 
@@ -178,8 +206,8 @@ var handlers = {
 
 //***********Helper Functions***********//
 
-function phoneCheck(phone, callback){
-  
+function parsePhone(phone){
+  return '+1' + phone;
 }
 
 function findIdOfMarket(marketToSearchFor, details){

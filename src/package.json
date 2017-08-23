@@ -22,6 +22,7 @@
   },
   "homepage": "",
   "dependencies": {
-    "alexa-sdk": "^1.0.11"
+    "alexa-sdk": "^1.0.12",
+    "twilio": "^3.6.3"
   }
 }
