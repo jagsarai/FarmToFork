@@ -1,6 +1,6 @@
 'use strict';
-// require('dotenv').config();
-var Alexa = require("alexa-sdk");
+require('dotenv').config();
+// var Alexa = require("alexa-sdk");
 const https = require("https");
 const accountSid = 'AC483fd50e3b37bff74f807e950a053212'
 const authToken = '8b20e70e7dd8a7c2868666962e3b375f'
