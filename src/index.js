@@ -6,15 +6,27 @@ const accountSid = process.env.ACCT_SID;
 const authToken = process.env.AUTH_TOKEN;
 // require the Twilio module and create a REST client
 const client = require('twilio')(accountSid, authToken);
+const HELP_MESSAGE = "Hello. Here are some of the things you can ask Tomato: " +
+                     "Find a farmers market near me. " +
+                     "Find a farmers market near San Francisco, California. " +
+                     "If you need help selecting a market, please check the information card in the alexa skills app."
+                     "You can also say stop or cancel to exit the skill." 
+const STOP_MESSAGE = "Goodbye!";
+
 var deviceId;
 var consentToken;
 var marketName;
+var googleLink;
+var address;
+var products;
+var schedule;
+
 
 
 exports.handler = function(event, context, callback) {
     var alexa = Alexa.handler(event, context);
 
-    // alexa.dynamoDBTableName = 'tomatoData';
+    alexa.dynamoDBTableName = 'tomatoData';
 
     alexa.registerHandlers(handlers);
     alexa.execute();
@@ -22,8 +34,8 @@ exports.handler = function(event, context, callback) {
 
 var handlers = {
     'LaunchRequest': function(){
-      var outputSpeech = "Welcome, I can find farmers markets near you. Please tell me which city you would like to search. You can say something like, find a market near San Francisco."
-      var repromptSpeech = "Please tell me which city you would like to search. You can say something like, find a market near San Francisco."
+      var outputSpeech = "Welcome, I can find farmers markets near you. Please specify the city and state you would like to search. You can say something like, find a market near San Francisco, California."
+      var repromptSpeech = "Please tell me which city and state you would like to search. You can say something like, find a market near San Francisco, California."
       this.emit(":ask", outputSpeech, repromptSpeech);
     },
     'SearchNearCity': function () {
@@ -49,28 +61,28 @@ var handlers = {
                                                                 : consentToken = undefined;
 
        console.log("consentToken: ", consentToken);
-        if(deviceId && consentToken && searchCity){
+        if(deviceId !== undefined && consentToken !== undefined && searchCity !== undefined){
             getCity(searchCity, (city) => {
                 getFarmersMarkets(null, city, null, (result) =>{
                     //Attributes collected for the GetDetails intent. 
                     this.attributes['GetDetails'] = result;
                     var answerString = '';
-                    var finalOutput;
                     console.log("result is: ", result)
-                    finalOutput = result.map((answer) => {
+                    var finalOutput = result.map((answer) => {
                       return answer["1"]
                             || answer["2"]
                             || answer["3"]
                             || answer["4"]
                             || answer["5"]
                     }).map((market) => {
-                      return answerString + " " + market["name"] 
+                      return answerString + market["name"] 
                     });
                     console.log("final output is: " + finalOutput);
+                    var finalString = addNumToEachResult(finalOutput);
                     var outputSpeech = `Here are the markets near ${searchCity}: ${finalOutput}. Please tell me if you would like details on one. You can say something like, the first one.`
                     var repromptSpeech = `Here are the markets near ${searchCity}: ${finalOutput}. You can say something like, the first one.`
                     var cardTitle = `Markets near ${searchCity}`
-                    var cardContent = `Here are the markets near ${searchCity}: ${finalOutput}.`
+                    var cardContent = `Here are the markets near ${searchCity}:\n ${finalString}`
                     this.emit(":askWithCard", outputSpeech, repromptSpeech, cardTitle, cardContent, null);
                 })
             })               
@@ -99,7 +111,7 @@ var handlers = {
                                                                 : consentToken = undefined;
 
        console.log("consentToken: ", consentToken);
-        if(deviceId && consentToken){
+        if(deviceId !== undefined && consentToken !== undefined){
             requestZip(deviceId, consentToken, (zip) => {
                 console.log("This is my zip: ", zip);
                 getFarmersMarkets(zip, null, null, (result) => {
@@ -115,13 +127,14 @@ var handlers = {
                             || answer["4"]
                             || answer["5"]
                     }).map((market) => {
-                      return answerString +  " " + market["name"] 
+                      return answerString + market["name"] 
                     });
                     console.log("final output is: " + finalOutput);
+                    var finalString = addNumToEachResult(finalOutput);
                     var outputSpeech = `Here are the markets near you: ${finalOutput}. Please tell me if you would like details on one. You can say something like, the first one.`
                     var repromptSpeech = `Here are the markets near you: ${finalOutput}. You can say something like, the first one.`
                     var cardTitle = `Markets near you`
-                    var cardContent = `Here are the markets near you: ${finalOutput}.`
+                    var cardContent = `Here are the markets near you:\n ${finalString}`
                     this.emit(":askWithCard", outputSpeech, repromptSpeech, cardTitle, cardContent, null);
                 });
             });               
@@ -151,45 +164,47 @@ var handlers = {
 
 
       getFarmersMarkets(null, null, id, (result) => {
-        console.log("results for GetDetails: ", result);
-        this.attributes["SendDetails"] = result;
-        var link = result['GoogleLink']
-        var address = result['Address']
-        var products = result['Products'] === "" ? result["Products"] = "Product detail for this market is not available" 
-                                                 : result["Products"].replace(/and\Wor/g, "and")
+        googleLink = result['GoogleLink']
+        address = result['Address']
+        products = result['Products'] === "" ? result["Products"] = "Product details for this market are not available" 
+                                             : result["Products"].replace(/and\Wor/g, "and")
                                                                      .replace(/,/g, ";")
                                                                      .replace(/etc.;/g, "")
                                                                      .replace(/(for immediate consumption)/g, "")
-        var schedule = result['Schedule'].replace(/<br>/g, "");
+        schedule = result['Schedule'].replace(/<br>/g, "");
+        schedule === "    " || schedule === undefined || schedule === null ? schedule = "No schedule information available." : schedule
+        console.log("schedule is ", schedule);
     
         var outputSpeech = `Here are the products sold at ${marketName}: ${products}. Should I send the details to your phone?`
         var repromptSpeech = 'Should I send the details to your phone? You can say something like send me the details.'
         var cardTitle = `Market Details for ${marketName}`
-        var cardContent = `Address: ${address} \n Products Sold: ${products} \n Schedule: ${schedule} \n link: ${link}` 
+        var cardContent = `ADDRESS: ${address} \n PRODUCTS SOLD: ${products} \n SCHEDULE: ${schedule} \n MAP LINK: ${googleLink}` 
         this.emit(":askWithCard", outputSpeech, repromptSpeech, cardTitle, cardContent)
       });
     },
     'SendDetails': function (){
-      var slotCollection = delegateSlotCollection.call(this)
-
-      console.log("attributes for GetDetails inside SendDetails: ", this.attributes["GetDetails"]);
+      var phoneNum = this.attributes["SendDetails"];
       console.log("attributes for SendDetails inside SendDetails: ", this.attributes["SendDetails"]);
-      console.log("name of market: ", marketName);
-      
-      var phoneNum = this.event.request.intent.slots.phone.value;
+
+      phoneNum !== undefined ? phoneNum : delegateSlotCollection.call(this);
+      phoneNum !== undefined ? phoneNum : phoneNum = this.event.request.intent.slots.phone.value;
+
       console.log("phone number inside SendDetails: ", phoneNum);
+      this.attributes["SendDetails"] = phoneNum;
+     
+      console.log("name of market: ", marketName);
+      console.log("googleLink: ", googleLink);
+      
 
-      var details = this.attributes["SendDetails"];
-
-      var googleLink = details["GoogleLink"];
-      console.log("GoogleLink: ", googleLink);
-
-      if(phoneNum !== undefined){
+      if(phoneNum !== undefined && marketName !== undefined && googleLink !== undefined && products !== undefined && schedule !== undefined){
         client.messages
         .create({
           to: parsePhone(phoneNum),
           from: process.env.MY_NUM,
-          body: `Here are the detials for ${marketName} \n ${googleLink}`
+          body: `Here are the detials for: ${marketName} \n 
+                 Address: ${address} \n 
+                 Schedule: ${schedule} \n 
+                 ${googleLink}`
         })
         .then((message) => {
           console.log(message.sid)
@@ -197,14 +212,34 @@ var handlers = {
         });  
       }
       else {
-        delegateSlotCollection.call(this);
+        this.emit("LaunchRequest");
       }
+    },
+    'AMAZON.HelpIntent': function () {
+        var speechOutput = HELP_MESSAGE;
+        var reprompt = HELP_MESSAGE;
+        this.emit(':ask', speechOutput, reprompt);
+    },
+    'AMAZON.CancelIntent': function () {
+        this.emit(':tell', STOP_MESSAGE);
+    },
+    'AMAZON.StopIntent': function () {
+        this.emit(':tell', STOP_MESSAGE);
     }
 };
 
 
 
 //***********Helper Functions***********//
+
+function addNumToEachResult(input){
+  var x = "";
+  for(var i = 0; i < input.length; i++){
+    x += (i+1).toString().concat(". " + input[i] + " \n");
+  }
+  console.log(x);
+  return x;
+}
 
 function parsePhone(phone){
   return '+1' + phone;
@@ -341,6 +376,7 @@ function parseCity(city){
 }
 
 function parseData(result){
+
   var results = [];
   
   results.push({"1": result[0]});
